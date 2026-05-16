@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Live Chat JKT48/Hanabira</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #09090b; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes slideInFade { 0% { opacity: 0; transform: translateX(-5px); } 100% { opacity: 1; transform: translateX(0); } }
+        .msg-anim { animation: slideInFade 0.2s ease-out forwards; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="relative w-full max-w-md bg-[#18181b] rounded-2xl flex flex-col overflow-hidden border border-white/10 h-[500px] shadow-2xl">
+        
+        <!-- Overlay Login -->
+        <div id="login-overlay" class="absolute inset-0 z-50 flex items-center justify-center bg-[#18181b]/90 backdrop-blur-sm transition-all duration-500">
+            <div class="w-full px-8 text-center">
+                <div class="w-12 h-12 bg-[#e61a23] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-600/20">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                </div>
+                <h2 class="text-lg font-bold text-white mb-2">Gabung Live Chat</h2>
+                <!-- Pesan Error -->
+                <p id="error-msg" class="text-red-500 text-xs mb-3 hidden font-medium">Nama tidak diizinkan!</p>
+                <input type="text" id="username-input" placeholder="Masukkan nama..." class="w-full bg-black border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-[#e61a23] transition-colors text-center text-sm mb-4">
+                <button id="join-btn" class="w-full bg-[#e61a23] hover:bg-red-700 text-white font-bold py-3 rounded-xl transition-colors text-sm shadow-lg shadow-red-900/30">Mulai Menyapa</button>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <header class="bg-[#e61a23] px-4 py-3 flex justify-between items-center z-10 shrink-0">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                <h1 class="font-bold text-white text-sm tracking-wide">Live Chat</h1>
+            </div>
+            <div class="bg-black/20 px-2.5 py-1 rounded-md flex items-center gap-1.5 border border-black/10">
+                <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                <span id="viewer-count" class="text-xs font-bold text-white">0</span>
+            </div>
+        </header>
+
+        <!-- Area Chat -->
+        <main id="chat-box" class="flex-1 overflow-y-auto p-3 space-y-1 bg-[#18181b] no-scrollbar relative transition-all duration-500">
+            <div id="empty-state" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <p class="text-white/40 text-sm font-medium">Jadilah yang pertama menyapa!</p>
+            </div>
+        </main>
+
+        <!-- Footer / Input -->
+        <footer class="p-3 bg-[#18181b] shrink-0 border-t border-white/5 relative z-20">
+            <div id="reply-preview" class="hidden absolute bottom-full left-0 w-full bg-[#202024] px-4 py-2 flex justify-between items-center text-xs border-y border-white/5 shadow-2xl">
+                <div class="flex items-center gap-2 truncate">
+                    <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                    <div class="truncate">
+                        <span class="text-gray-400">Membalas <span class="font-bold text-[#e61a23]" id="reply-to-name">User</span></span>
+                        <span class="text-gray-500 ml-1 truncate" id="reply-to-text">teks...</span>
+                    </div>
+                </div>
+                <button id="cancel-reply-btn" class="text-gray-400 hover:text-white ml-2 p-1 bg-black/20 rounded-full">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form id="chat-form" class="flex items-center gap-2">
+                <input type="text" id="message-input" autocomplete="off" disabled placeholder="Tunggu sebentar..." 
+                    class="flex-1 bg-black border border-white/10 rounded-full px-4 py-2.5 text-[13px] text-white focus:outline-none focus:border-white/30 transition-all disabled:opacity-50">
+                <button type="submit" id="send-btn" disabled class="bg-[#e61a23] text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-red-700 disabled:opacity-50 shrink-0">
+                    <svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+            </form>
+        </footer>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        // Tambahkan onChildRemoved
+        import { getDatabase, ref, push, onChildAdded, onChildRemoved, onValue, set, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "ISI_API_KEY_ANDA",
+            authDomain: "live-chat-website-dfe5c.firebaseapp.com",
+            databaseURL: "https://live-chat-website-dfe5c-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "live-chat-website-dfe5c",
+            storageBucket: "live-chat-website-dfe5c.appspot.com",
+            messagingSenderId: "ISI_SENDER_ID",
+            appId: "ISI_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const messagesRef = ref(db, 'messages');
+        const viewersRef = ref(db, 'viewers');
+
+        let currentUser = null;
+        let replyingTo = null;
+
+        const loginOverlay = document.getElementById('login-overlay');
+        const errorMsg = document.getElementById('error-msg');
+        const messageInput = document.getElementById('message-input');
+        const chatBox = document.getElementById('chat-box');
+
+        // VALIDASI LOGIN
+        document.getElementById('join-btn').addEventListener('click', () => {
+            const rawName = document.getElementById('username-input').value.trim();
+            const upperName = rawName.toUpperCase();
+            
+            // Aturan Blokir Nama
+            if (upperName.includes('ADMIN') || upperName.includes('HANABIRA')) {
+                errorMsg.classList.remove('hidden');
+                document.getElementById('username-input').classList.add('border-red-500');
+                return;
+            }
+
+            if (rawName) {
+                currentUser = rawName;
+                loginOverlay.classList.add('opacity-0', 'pointer-events-none');
+                messageInput.disabled = false;
+                document.getElementById('send-btn').disabled = false;
+                messageInput.placeholder = "Ketik pesan...";
+                setupPresence();
+            }
+        });
+
+        function setupPresence() {
+            const sessionId = Math.random().toString(36).substring(7);
+            const myPresence = ref(db, `viewers/${sessionId}`);
+            onValue(ref(db, '.info/connected'), (snap) => {
+                if (snap.val()) {
+                    onDisconnect(myPresence).remove();
+                    set(myPresence, true);
+                }
+            });
+            onValue(viewersRef, (snap) => document.getElementById('viewer-count').innerText = snap.size || 0);
+        }
+
+        window.prepareReply = (name, text) => {
+            replyingTo = { name, text };
+            document.getElementById('reply-to-name').innerText = name;
+            document.getElementById('reply-to-text').innerText = text;
+            document.getElementById('reply-preview').classList.remove('hidden');
+            messageInput.focus();
+        };
+
+        document.getElementById('cancel-reply-btn').addEventListener('click', () => {
+            replyingTo = null;
+            document.getElementById('reply-preview').classList.add('hidden');
+        });
+
+        document.getElementById('chat-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = messageInput.value.trim();
+            if (text && currentUser) {
+                const data = { sender: currentUser, text, timestamp: serverTimestamp() };
+                if (replyingTo) data.reply = replyingTo;
+                push(messagesRef, data);
+                messageInput.value = '';
+                replyingTo = null;
+                document.getElementById('reply-preview').classList.add('hidden');
+            }
+        });
+
+        // TERIMA PESAN
+        onChildAdded(messagesRef, (snap) => {
+            document.getElementById('empty-state').style.display = 'none';
+            const m = snap.val();
+            const div = document.createElement('div');
+            
+            // Tambahkan ID ke elemen untuk bisa dihapus nanti
+            div.id = `msg-${snap.key}`;
+            div.className = `msg-anim px-2 py-1.5 hover:bg-white/5 rounded cursor-pointer transition-colors group`;
+            div.onclick = () => prepareReply(m.sender, m.text.replace(/'/g, "\\'"));
+
+            const replyBlock = m.reply ? `
+                <div class="flex items-center gap-1.5 text-[11px] text-gray-400 mb-0.5 ml-0.5">
+                    <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                    <span class="truncate">Membalas <span class="font-medium text-gray-300">@${m.reply.name}</span></span>
+                </div>
+            ` : '';
+
+            // Jika sender ADMIN, berikan styling khusus (badge kecil)
+            const isAdmin = m.sender === 'ADMIN';
+            const senderTag = isAdmin 
+                ? `<span class="bg-[#e61a23] text-white text-[9px] px-1.5 py-0.5 rounded font-bold mr-1 align-middle">ADMIN</span>` 
+                : `<span class="font-semibold text-[#e61a23] mr-1.5 align-middle">${m.sender}</span>`;
+
+            div.innerHTML = `
+                ${replyBlock}
+                <div class="text-[13px] leading-relaxed break-words">
+                    ${senderTag}
+                    <span class="${isAdmin ? 'text-white font-medium' : 'text-gray-100'} align-middle">${m.text}</span>
+                </div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+        });
+
+        // REAL-TIME HAPUS PESAN KETIKA DIHAPUS OLEH ADMIN
+        onChildRemoved(messagesRef, (snap) => {
+            const msgElement = document.getElementById(`msg-${snap.key}`);
+            if (msgElement) {
+                msgElement.remove();
+            }
+        });
+    </script>
+</body>
+</html>

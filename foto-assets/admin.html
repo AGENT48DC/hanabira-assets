@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Admin Live Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #050505; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- KOMPONEN ADMIN CHAT -->
+    <div class="relative w-full max-w-xl bg-[#18181b] rounded-2xl flex flex-col overflow-hidden border-2 border-[#e61a23]/30 h-[600px] shadow-2xl">
+        
+        <!-- Header Admin -->
+        <header class="bg-[#121215] px-4 py-3 flex justify-between items-center z-10 shrink-0 border-b border-white/5">
+            <div class="flex items-center gap-2">
+                <span class="bg-[#e61a23] text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-widest">Admin Mode</span>
+                <h1 class="font-bold text-white text-sm">Live Chat Control</h1>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-gray-400">Viewers: <b id="viewer-count" class="text-white">0</b></span>
+                <!-- TOMBOL HAPUS SEMUA PESAN -->
+                <button id="clear-all-btn" class="bg-red-900/50 hover:bg-red-600 border border-red-500/50 text-white text-xs px-3 py-1.5 rounded transition-colors flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    Hapus Semua
+                </button>
+            </div>
+        </header>
+
+        <!-- Area Chat Admin -->
+        <main id="chat-box" class="flex-1 overflow-y-auto p-3 space-y-1 bg-[#18181b] no-scrollbar relative">
+            <!-- List pesan via JS -->
+        </main>
+
+        <!-- Area Input Admin -->
+        <footer class="p-3 bg-[#121215] shrink-0 border-t border-white/5 relative z-20">
+            <form id="chat-form" class="flex items-center gap-2">
+                <input type="text" id="message-input" autocomplete="off" placeholder="Kirim pengumuman sebagai ADMIN..." 
+                    class="flex-1 bg-black border border-[#e61a23]/30 rounded-full px-4 py-3 text-[13px] text-white focus:outline-none focus:border-[#e61a23] transition-all">
+                <button type="submit" id="send-btn" class="bg-[#e61a23] text-white w-12 h-12 rounded-full flex items-center justify-center hover:bg-red-700 shrink-0">
+                    <svg class="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+            </form>
+        </footer>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        // Tambahkan 'remove' untuk menghapus data
+        import { getDatabase, ref, push, onChildAdded, onChildRemoved, onValue, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "ISI_API_KEY_ANDA",
+            authDomain: "live-chat-website-dfe5c.firebaseapp.com",
+            databaseURL: "https://live-chat-website-dfe5c-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "live-chat-website-dfe5c",
+            storageBucket: "live-chat-website-dfe5c.appspot.com",
+            messagingSenderId: "ISI_SENDER_ID",
+            appId: "ISI_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const messagesRef = ref(db, 'messages');
+        const viewersRef = ref(db, 'viewers');
+
+        // OTOMATIS LOGIN SEBAGAI ADMIN
+        const currentUser = "ADMIN";
+        
+        const messageInput = document.getElementById('message-input');
+        const chatBox = document.getElementById('chat-box');
+
+        // Pantau jumlah viewers
+        onValue(viewersRef, (snap) => {
+            document.getElementById('viewer-count').innerText = snap.size || 0;
+        });
+
+        // KIRIM PESAN ADMIN
+        document.getElementById('chat-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = messageInput.value.trim();
+            if (text) {
+                push(messagesRef, { sender: currentUser, text: text, timestamp: serverTimestamp() });
+                messageInput.value = '';
+            }
+        });
+
+        // FITUR HAPUS SEMUA PESAN
+        document.getElementById('clear-all-btn').addEventListener('click', () => {
+            if(confirm('Yakin ingin menghapus SELURUH pesan chat? Penonton juga akan kehilangan riwayat chat ini.')) {
+                remove(messagesRef);
+            }
+        });
+
+        // Fungsi Hapus Pesan Satuan (Dipanggil lewat HTML onClick)
+        window.deleteMessage = (messageId) => {
+            if(confirm('Hapus pesan ini?')) {
+                remove(ref(db, `messages/${messageId}`));
+            }
+        };
+
+        // RENDER PESAN DI PANEL ADMIN
+        onChildAdded(messagesRef, (snap) => {
+            const m = snap.val();
+            const messageId = snap.key;
+            const div = document.createElement('div');
+            
+            div.id = `admin-msg-${messageId}`;
+            div.className = `flex justify-between items-start px-2 py-2 hover:bg-white/5 rounded transition-colors group border-b border-white/5 last:border-0`;
+
+            const isAdmin = m.sender === 'ADMIN';
+            const senderDisplay = isAdmin ? `<span class="text-[#e61a23] font-bold text-xs">[ADMIN]</span>` : `<span class="font-bold text-gray-300 text-xs">${m.sender}</span>`;
+
+            div.innerHTML = `
+                <div class="text-[13px] break-words pr-4 flex-1">
+                    ${senderDisplay}
+                    <span class="text-gray-400 ml-1">${m.text}</span>
+                </div>
+                <!-- TOMBOL HAPUS SATUAN -->
+                <button onclick="deleteMessage('${messageId}')" class="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 bg-black/30 rounded shrink-0" title="Hapus Pesan">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+            `;
+            
+            chatBox.appendChild(div);
+            chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+        });
+
+        // HAPUS ELEMEN DARI DOM SAAT DATA TERHAPUS DARI DATABASE
+        onChildRemoved(messagesRef, (snap) => {
+            const msgElement = document.getElementById(`admin-msg-${snap.key}`);
+            if (msgElement) {
+                msgElement.remove();
+            }
+        });
+    </script>
+</body>
+</html>
